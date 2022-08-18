@@ -1,0 +1,9 @@
+version: '3'
+services:
+  price-app-dev:
+    build: .
+    volumes:
+      - ./.env:/app/.env
+    ports:
+      - '3030:3000'
+    restart: on-failure
