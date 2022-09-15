@@ -98,7 +98,7 @@ export class AppInitService implements OnModuleInit {
         continue;
       }
       this.logger.debug(`Filling gap for currency: ${currency.symbol} time: ${curTime.toISOString()}`);
-      const [error, cotiExchangeRate] = await exec(getExchangeRate(this.configService, currency.symbol));
+      const [error, cotiExchangeRate] = await exec(getExchangeRate(this.configService, currency.symbol, curTime));
       if (error) throw error;
       const [insertError] = await exec(insertPricesToDb(manager, cotiExchangeRate, currency, curTime));
       if (insertError) throw insertError;
