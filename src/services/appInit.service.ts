@@ -1,11 +1,10 @@
 import { Injectable, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import moment from 'moment';
 import { SchedulerService } from '.';
-import { EntityManager, getManager } from 'typeorm';
-import { AppStateEntity, CurrenciesEntity, getCurrencies, getLastCurrencyPrice, isPriceExists } from '../entities';
-import { DbNames, exec, getExchangeRate, insertPricesToDb, sleep } from '../utils';
-import { AppStateNames, TableNames } from 'src/enums';
+import { getManager } from 'typeorm';
+import { AppStateEntity } from '../entities';
+import { DbNames, exec } from '../utils';
+import { AppStateNames, TableNames } from '../enums';
 
 @Injectable()
 export class AppInitService implements OnModuleInit {
@@ -25,8 +24,6 @@ export class AppInitService implements OnModuleInit {
   async init() {
     try {
       await this.initAppStates();
-      const enforceFillGap = this.configService.get<boolean>('ENFORCE_FILL_GAP');
-      await this.fillPriceGap(enforceFillGap);
       this.intervalsInitialization();
     } catch (e) {
       this.logger.error(e);
@@ -56,53 +53,15 @@ export class AppInitService implements OnModuleInit {
   }
 
   intervalsInitialization() {
-    const cotiPriceFreqInSeconds = this.configService.get<number>('COTI_PRICE_FREQUENCY_IN_SECONDS');
-    this.scheduler.runEveryXSeconds('COTI_PRICE_RATE', this.scheduler.updatePriceSample.bind(this.scheduler), cotiPriceFreqInSeconds, true).catch(error => {
-      this.logger.error(`{intervalsInitialization} ${error}`);
+    const priceFreqInSeconds = this.configService.get<number>('INTERVAL_PRICE_FREQUENCY_IN_SECONDS');
+    const priceFillGapFreqInSeconds = this.configService.get<number>('INTERVAL_PRICE_FILL_GAP_FREQUENCY_IN_SECONDS');
+    const priceFillGapEnable = this.configService.get<boolean>('INTERVAL_FILL_GAP_ENABLE');
+    this.scheduler.runEveryXSeconds('INSERT_PRICE', this.scheduler.updatePriceSample.bind(this.scheduler), priceFreqInSeconds, true).catch(error => {
+      this.logger.error(`{intervalsInitialization}{INSERT_PRICE} ${error}`);
     });
-  }
 
-  async fillPriceGap(enforceFillGap: boolean): Promise<void> {
-    const promises: Promise<void>[] = [];
-    const manager = getManager(DbNames.PRICE_MONITOR);
-    const currencies = await getCurrencies(manager);
-    for (const currency of currencies) {
-      promises.push(this.fillTimeGapsInDb(currency, manager));
-    }
-    const responses = await Promise.allSettled(promises);
-    const rejectedResponses = responses.filter(x => x.status === 'rejected').map(x => x as PromiseRejectedResult);
-    rejectedResponses.forEach(response => this.logger.error(response.reason));
-    if (enforceFillGap && rejectedResponses.length > 0) {
-      process.exit(0);
-    }
-  }
-  async fillTimeGapsInDb(currency: CurrenciesEntity, manager: EntityManager): Promise<void> {
-    const lastPrice = await getLastCurrencyPrice(manager, currency);
-
-    const now = moment();
-    const monitorFrom = moment(currency.monitorFrom);
-    const lastPriceDate = lastPrice ? moment(lastPrice.timestamp) : moment();
-
-    let curTime = lastPriceDate.isAfter(monitorFrom) ? lastPriceDate.toDate() : monitorFrom.toDate();
-    const diffInMonths = now.diff(lastPriceDate, 'months');
-    if (diffInMonths > 1) {
-      curTime = moment().subtract(1, 'months').toDate();
-    }
-    const diffInMinutes = now.diff(curTime, 'minutes');
-    if (diffInMinutes === 0) return;
-    while (curTime <= now.toDate()) {
-      curTime = moment(curTime).add(1, 'minute').toDate();
-      const exists = await isPriceExists(manager, currency.id);
-      if (exists) {
-        this.logger.debug(`Price already exists for currency: ${currency.symbol} time: ${moment().toDate().toISOString()} skipping!`);
-        continue;
-      }
-      this.logger.debug(`Filling gap for currency: ${currency.symbol} time: ${curTime.toISOString()}`);
-      const [error, cotiExchangeRate] = await exec(getExchangeRate(this.configService, currency.symbol, curTime));
-      if (error) throw error;
-      const [insertError] = await exec(insertPricesToDb(manager, cotiExchangeRate, currency, curTime));
-      if (insertError) throw insertError;
-      await sleep(5000);
-    }
+    this.scheduler.runEveryXSeconds('PRICE_FILL_GAP', this.scheduler.fillGap.bind(this.scheduler), priceFillGapFreqInSeconds, priceFillGapEnable).catch(error => {
+      this.logger.error(`{intervalsInitialization}{PRICE_FILL_GAP} ${error}`);
+    });
   }
 }

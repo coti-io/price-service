@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EntityManager, getManager } from 'typeorm';
 import { CreateCurrencyRequestDto, Prices, GetPriceByDexRequestDto, GetPriceByDexResponseDto, GetPriceRequestDto, GetPriceResponseDto } from './dtos';
-import { createNewCurrency, CurrenciesEntity, getAppStateByName, getCurrencyBySymbol, getPrice, isPriceExists, PriceSampleEntity } from './entities';
+import { createNewCurrency, CurrenciesEntity, getAppStateByName, getCurrencyBySymbol, getPrice, isPriceExistsInDate, PriceSampleEntity } from './entities';
 import { DbNames, Exchanges, exchangesNameMapping, exec, getExchangeRate, insertPricesToDb } from './utils';
 import moment from 'moment';
 import { AppStateNames } from './enums';
@@ -16,16 +16,17 @@ export class AppService {
   async insertPriceSample(currency: CurrenciesEntity) {
     const manager = getManager(DbNames.PRICE_MONITOR);
     try {
-      const exists = await isPriceExists(manager, currency.id);
+      const now = moment().startOf('minute').toDate();
+      const exists = await isPriceExistsInDate(manager, currency.id, now);
       if (exists) {
-        this.logger.debug(`Price already exists for currency: ${currency.symbol} time: ${moment().toDate().toISOString()} skipping!`);
+        this.logger.debug(`Price already exists for currency: ${currency.symbol} time: ${now.toISOString()} skipping!`);
         return;
       }
-      const cotiExchangeRate = await getExchangeRate(this.configService, currency.symbol);
+      const cotiExchangeRate = await getExchangeRate(this.configService, currency.symbol, now);
       await manager.transaction(async transactionalEntityManager => {
-        const [saveError] = await exec(insertPricesToDb(transactionalEntityManager, cotiExchangeRate, currency));
+        const [saveError] = await exec(insertPricesToDb(transactionalEntityManager, cotiExchangeRate, currency, now));
         if (saveError) throw saveError;
-        this.logger.debug(`Currency ${currency} usd price sample created ${new Date()}`);
+        this.logger.debug(`Currency ${currency.symbol} usd price sample created ${new Date()}`);
       });
     } catch (error) {
       this.logger.error(error);
@@ -88,16 +89,16 @@ export class AppService {
         prices[exchange] = priceSample[exchange];
       });
     }
-    return new GetPriceResponseDto(prices, moment(priceSample.timestamp).utc(true).toDate());
+    return new GetPriceResponseDto(prices, moment(priceSample.timestamp).toDate());
   }
 
   async prepareGetPriceByDexResponse(manager: EntityManager, dexPrice: string, date: Date, currencyId: number) {
-    if (dexPrice && date) return new GetPriceByDexResponseDto(dexPrice, moment(date).utc(true).toDate());
+    if (dexPrice && date) return new GetPriceByDexResponseDto(dexPrice, moment(date).toDate());
     else {
       const requestedPriceSample = await getPrice(manager, date, currencyId);
       dexPrice = requestedPriceSample ? requestedPriceSample[exchangesNameMapping[Exchanges.CMC.toUpperCase()]] : undefined;
       if (!dexPrice) throw new BadRequestException(`Could not get price for dex ${Exchanges.CMC} date: ${date}`);
-      return new GetPriceByDexResponseDto(dexPrice, moment(requestedPriceSample.timestamp).utc(true).toDate());
+      return new GetPriceByDexResponseDto(dexPrice, moment(requestedPriceSample.timestamp).toDate());
     }
   }
 

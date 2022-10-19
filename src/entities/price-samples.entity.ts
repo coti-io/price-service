@@ -36,12 +36,8 @@ export class PriceSampleEntity extends BaseEntity {
   currency: CurrenciesEntity;
 }
 
-export const isPriceExists = async (manager: EntityManager, currencyId: number) => {
-  const condition = `DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i') = DATE_FORMAT('${moment()
-    .startOf('minute')
-    .utc(true)
-    .toDate()
-    .toISOString()}', '%Y-%m-%d %H:%i') AND currencyId = ${currencyId}`;
+export const isPriceExistsInDate = async (manager: EntityManager, currencyId: number, date: Date) => {
+  const condition = `timestamp='${moment(date).utc(false).startOf('minute').format('YYYY-MM-DD HH:mm:ss.SSS')}' AND currencyId = ${currencyId}`;
   const [error, existsPrice] = await exec(
     manager.getRepository<PriceSampleEntity>(TableNames.PRICE_SAMPLES).findOne({
       where: condition,
@@ -51,27 +47,8 @@ export const isPriceExists = async (manager: EntityManager, currencyId: number) 
   return !!existsPrice;
 };
 
-export async function getLastCurrencyPrice(manager: EntityManager, currency: CurrenciesEntity) {
-  const [lastPriceError, lastPrice] = await exec(
-    manager
-      .getRepository<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
-      .createQueryBuilder('price_samples')
-      .where({ currencyId: currency.id })
-      .orderBy({ id: 'DESC' })
-      .limit(1)
-      .getOne(),
-  );
-
-  if (lastPriceError) throw lastPriceError;
-  return lastPrice;
-}
-
 export async function getPrice(manager: EntityManager, date: Date, currencyId: number) {
-  const condition = `DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i') = DATE_FORMAT('${moment(date)
-    .startOf('minute')
-    .utc(true)
-    .toDate()
-    .toISOString()}', '%Y-%m-%d %H:%i') AND currencyId = ${currencyId}`;
+  const condition = `timestamp='${moment(date).utc(false).startOf('minute').format('YYYY-MM-DD HH:mm:ss.SSS')}' AND currencyId = ${currencyId}`;
   const [error, price] = await exec(
     manager.getRepository<PriceSampleEntity>(TableNames.PRICE_SAMPLES).findOne({
       where: condition,

@@ -1,7 +1,7 @@
 import { CotiPriceRate } from '@coti-io/coti-price-rate';
 import { ConfigService } from '@nestjs/config';
 import { exec } from './promise-helper';
-import { CurrenciesEntity, isPriceExists, PriceSampleEntity } from '../entities';
+import { CurrenciesEntity, isPriceExistsInDate, PriceSampleEntity } from '../entities';
 import { Logger } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import moment from 'moment';
@@ -74,10 +74,9 @@ const calculateAverage = (array: number[]): number => {
   }, 0);
 };
 
-export const insertPricesToDb = async (transactionalEntityManager: EntityManager, cotiExchangeRate, currency: CurrenciesEntity, date?: Date) => {
-  const exists = await isPriceExists(transactionalEntityManager, currency.id);
+export const insertPricesToDb = async (transactionalEntityManager: EntityManager, cotiExchangeRate, currency: CurrenciesEntity, date: Date) => {
+  const exists = await isPriceExistsInDate(transactionalEntityManager, currency.id, date);
   if (exists) return;
-  const now = moment().startOf('minute').utc(true).toDate();
   const [exchangeError] = await exec(
     transactionalEntityManager
       .getRepository<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
@@ -85,7 +84,7 @@ export const insertPricesToDb = async (transactionalEntityManager: EntityManager
       .insert()
       .into<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
       .values({
-        timestamp: date ? moment(date).startOf('minute').utc(true).toDate() : now,
+        timestamp: moment(date).startOf('minute').toDate(),
         currencyId: currency.id,
         binance: parseFloat(String(cotiExchangeRate.sources.binance || 0)),
         kucoin: parseFloat(String(cotiExchangeRate.sources.kucoin || 0)),
