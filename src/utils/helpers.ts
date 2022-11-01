@@ -53,7 +53,7 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
   const prices = await Promise.allSettled<{ exchangeName: string; price: number }>(sources);
   const successPrices = prices.filter(x => x.status === 'fulfilled').map(x => x as PromiseFulfilledResult<{ exchangeName: string; price: number }>);
   const failedPrices = prices.filter(x => x.status === 'rejected').map(x => x as PromiseRejectedResult);
-  failedPrices.forEach(failedPrice => this.logger.error(failedPrice.reason.message));
+  failedPrices.forEach(failedPrice => logger.error(failedPrice.reason.message));
 
   const binance = successPrices.find(price => price.value.exchangeName === Exchanges.BINANCE)?.value?.price;
   const crypto = successPrices.find(price => price.value.exchangeName === Exchanges.CRYPTOCOM)?.value?.price;
