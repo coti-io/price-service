@@ -39,8 +39,9 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
   const logger = new Logger('Helpers.getExchangeRate');
   const apiKey = configService.get<string>('CMC_API_KEY');
   const priceRate = new CotiPriceRate(apiKey);
-  if (date) {
-    logger.log(`Getting exchange rate for timestamp ${date.getTime()}`);
+  const exchangeRateTime = date ? date.getTime()/1000 : undefined;
+  if (exchangeRateTime) {
+    logger.log(`Getting exchange rate for timestamp ${exchangeRateTime}`);
   }
   let sources = [];
   if (dex === Exchanges.CMC) {
@@ -51,7 +52,7 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
       priceRate.getCryptoComPrice(CurrencySymbols[currency].CRYPTOCOM).then(res => ({ exchangeName: Exchanges.CRYPTOCOM, price: res })),
       priceRate.getCoinBasePrice(CurrencySymbols[currency].COINBASE).then(res => ({ exchangeName: Exchanges.COINBASE, price: res })),
       priceRate.getKuCoinPrice(CurrencySymbols[currency].KUCOIN).then(res => ({ exchangeName: Exchanges.KUCOIN, price: res })),
-      priceRate.getCoinMarketCapPrice(CurrencySymbols[currency].COIN_MARKET_CAP, date?.getTime()).then(res => ({ exchangeName: 'cmc', price: res })),
+      priceRate.getCoinMarketCapPrice(CurrencySymbols[currency].COIN_MARKET_CAP, exchangeRateTime).then(res => ({ exchangeName: 'cmc', price: res })),
     ];
   }
   const prices = await Promise.allSettled<{ exchangeName: string; price: number }>(sources);
