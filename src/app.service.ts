@@ -19,19 +19,19 @@ export class AppService {
       const now = moment().startOf('minute').toDate();
       const exists = await isPriceExistsInDate(manager, currency.id, now);
       if (exists) {
-        this.logger.debug(`Price already exists for currency: ${currency.symbol} time: ${now.toISOString()} skipping!`);
+        this.logger.debug(`[insertPriceSample][Price already exists for currency: ${currency.symbol} time: ${now.toISOString()} skipping!]`);
         return;
       }
       const cotiExchangeRate = await getExchangeRate(this.configService, currency.symbol, now);
       await manager.transaction(async transactionalEntityManager => {
         const [saveError] = await exec(insertPricesToDb(transactionalEntityManager, cotiExchangeRate, currency, now));
         if (saveError) throw saveError;
-        this.logger.debug(`Currency ${currency.symbol} usd price sample created ${new Date()}`);
+        this.logger.debug(`[insertPriceSample][Currency ${currency.symbol} usd price sample created for ${now}]`);
       });
     } catch (error) {
       this.logger.error(error);
     } finally {
-      this.logger.debug(`findAll start current free connections after release ${manager['connection']['driver']['pool']['_freeConnections'].length}`);
+      this.logger.debug(`[insertPriceSample][Current free connections after release ${manager['connection']['driver']['pool']['_freeConnections'].length}]`);
     }
   }
 

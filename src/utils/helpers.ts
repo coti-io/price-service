@@ -36,8 +36,12 @@ export enum CurrencyTypes {
 }
 
 export async function getExchangeRate(configService: ConfigService, currency: CurrencyTypes, date?: Date, dex?: Exchanges) {
+  const logger = new Logger('Helpers.getExchangeRate');
   const apiKey = configService.get<string>('CMC_API_KEY');
   const priceRate = new CotiPriceRate(apiKey);
+  if (date) {
+    logger.log(`Getting exchange rate for timestamp ${date.getTime()}`);
+  }
   let sources = [];
   if (dex === Exchanges.CMC) {
     sources = [priceRate.getCoinMarketCapPrice(CurrencySymbols[currency].COIN_MARKET_CAP, date?.getTime()).then(res => ({ exchangeName: 'cmc', price: res }))];

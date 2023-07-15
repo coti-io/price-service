@@ -26,13 +26,14 @@ export class SchedulerService {
         const [error] = await exec(functionToRun());
         if (error) this.logger.error(`Task [${name}][iteration ${iterationCounter.get(name)}] [${error.message || error}]`);
 
+        this.logger.log(`Task [${name}][iteration ${iterationCounter.get(name)}] ended`);
+
         const now = moment.now();
         const timeDiffInSeconds = (now - lastActivationTime) / 1000;
         const sleepTime = minIntervalInSeconds - timeDiffInSeconds;
         if (sleepTime > 0) {
           await sleep(sleepTime * 1000);
         }
-        this.logger.log(`Task [${name}][iteration ${iterationCounter.get(name)}] ended`);
         iterationCounter.set(name, iterationCounter.get(name) + 1);
       }
     } catch (error) {
@@ -45,13 +46,13 @@ export class SchedulerService {
     const tasks: Promise<void>[] = [];
     const manager = getManager(DbNames.PRICE_MONITOR);
     const currencies = await getCurrencies(manager);
-    this.logger.debug(`${missileString} Starting update price scheduler `);
+    this.logger.debug(`[updatePriceSample][Starting update price scheduler]`);
     for (const currency of currencies) {
-      this.logger.debug(`Updating price to currency symbol: ${currency.symbol}`);
+      this.logger.debug(`[updatePriceSample][Updating price to currency symbol: ${currency.symbol}]`);
       tasks.push(this.appService.insertPriceSample(currency));
     }
     await Promise.allSettled(tasks);
-    this.logger.debug(`${missileString}${missileString} Finished insert coti price scheduler `);
+    this.logger.debug(`[updatePriceSample][Finished insert coti price scheduler]`);
   }
 
   async fillTimeGapsForPastDay(currency: CurrenciesEntity, manager: EntityManager, from: Date, to: Date): Promise<void> {
