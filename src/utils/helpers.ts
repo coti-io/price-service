@@ -39,8 +39,10 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
   const logger = new Logger('Helpers.getExchangeRate');
   const apiKey = configService.get<string>('CMC_API_KEY');
   const priceRate = new CotiPriceRate(apiKey);
-  const exchangeRateTime = date ? date.getTime()/1000 : undefined;
-  if (exchangeRateTime) {
+  const rateTime = date ? date.getTime()/1000 - 90 : undefined;
+  let exchangeRateTime: number | undefined;
+  if (rateTime) {
+    exchangeRateTime = rateTime - (rateTime % 300);
     logger.log(`Getting exchange rate for timestamp ${exchangeRateTime}`);
   }
   let sources = [];
