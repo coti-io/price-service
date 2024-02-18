@@ -28,11 +28,13 @@ export const exchangesNameMapping = {
 export const CurrencySymbols = {
   COTI: { BINANCE: 'COTIUSDT', CRYPTOCOM: 'cotiusdc', COINBASE: 'COTI-USD', KUCOIN: 'COTI-USDT', COIN_MARKET_CAP: 'COTI' },
   ETH: { BINANCE: 'ETHUSDT', CRYPTOCOM: 'ethusdc', COINBASE: 'ETH-USD', KUCOIN: 'ETH-USDT', COIN_MARKET_CAP: 'ETH' },
+  GCOTI: { BINANCE: 'GCOTIUSDT', CRYPTOCOM: 'gcotiusdc', COINBASE: 'GCOTI-USD', KUCOIN: 'GCOTI-USTD', COIN_MARKET_CAP: 'GCOTI' },
 };
 
 export enum CurrencyTypes {
   ETH = 'ETH',
   COTI = 'COTI',
+  GCOTI = 'GCOTI',
 }
 
 export async function getExchangeRate(configService: ConfigService, currency: CurrencyTypes, date?: Date, dex?: Exchanges) {
