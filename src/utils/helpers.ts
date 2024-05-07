@@ -49,14 +49,14 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
   }
   let sources = [];
   if (dex === Exchanges.CMC) {
-    sources = [priceRate.getCoinMarketCapPrice(CurrencySymbols[currency].COIN_MARKET_CAP, date?.getTime()).then(res => ({ exchangeName: 'cmc', price: res }))];
+    sources = [priceRate.getCoinMarketCapPriceV2(CurrencySymbols[currency].COIN_MARKET_CAP, date?.getTime()).then(res => ({ exchangeName: 'cmc', price: res }))];
   } else {
     sources = [
       priceRate.getBinancePrice(CurrencySymbols[currency].BINANCE).then(res => ({ exchangeName: Exchanges.BINANCE, price: res })),
       priceRate.getCryptoComPrice(CurrencySymbols[currency].CRYPTOCOM).then(res => ({ exchangeName: Exchanges.CRYPTOCOM, price: res })),
       priceRate.getCoinBasePrice(CurrencySymbols[currency].COINBASE).then(res => ({ exchangeName: Exchanges.COINBASE, price: res })),
       priceRate.getKuCoinPrice(CurrencySymbols[currency].KUCOIN).then(res => ({ exchangeName: Exchanges.KUCOIN, price: res })),
-      priceRate.getCoinMarketCapPrice(CurrencySymbols[currency].COIN_MARKET_CAP, exchangeRateTime).then(res => ({ exchangeName: 'cmc', price: res })),
+      priceRate.getCoinMarketCapPriceV2(CurrencySymbols[currency].COIN_MARKET_CAP, exchangeRateTime).then(res => ({ exchangeName: 'cmc', price: res })),
     ];
   }
   const prices = await Promise.allSettled<{ exchangeName: string; price: number }>(sources);
