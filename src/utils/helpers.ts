@@ -41,7 +41,7 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
   const logger = new Logger('Helpers.getExchangeRate');
   const apiKey = configService.get<string>('CMC_API_KEY');
   const priceRate = new CotiPriceRate(apiKey);
-  const rateTime = date ? date.getTime()/1000 - 90 : undefined;
+  const rateTime = date ? date.getTime() / 1000 - 90 : undefined;
   let exchangeRateTime: number | undefined;
   if (rateTime) {
     exchangeRateTime = rateTime - (rateTime % 300);
@@ -62,7 +62,7 @@ export async function getExchangeRate(configService: ConfigService, currency: Cu
   const prices = await Promise.allSettled<{ exchangeName: string; price: number }>(sources);
   const successPrices = prices.filter(x => x.status === 'fulfilled').map(x => x as PromiseFulfilledResult<{ exchangeName: string; price: number }>);
   const failedPrices = prices.filter(x => x.status === 'rejected').map(x => x as PromiseRejectedResult);
-  failedPrices.forEach(failedPrice => logger.error(failedPrice.reason.config.url + ":" + failedPrice.reason.message));
+  failedPrices.forEach(failedPrice => logger.error(failedPrice.reason?.config?.url + ':' + failedPrice.reason.message));
 
   const binance = successPrices.find(price => price.value.exchangeName === Exchanges.BINANCE)?.value?.price;
   const crypto = successPrices.find(price => price.value.exchangeName === Exchanges.CRYPTOCOM)?.value?.price;
