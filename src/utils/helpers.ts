@@ -86,28 +86,42 @@ const calculateAverage = (array: number[]): number => {
 export const insertPricesToDb = async (transactionalEntityManager: EntityManager, cotiExchangeRate, currency: CurrenciesEntity, date: Date) => {
   const exists = await isPriceExistsInDate(transactionalEntityManager, currency.id, date);
   if (exists) return;
-  const [exchangeError] = await exec(
-    transactionalEntityManager
-      .getRepository<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
-      .createQueryBuilder()
-      .insert()
-      .into<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
-      .values({
-        timestamp: moment(date).startOf('minute').toDate(),
-        currencyId: currency.id,
-        binance: parseFloat(String(cotiExchangeRate.sources.binance || 0)),
-        kucoin: parseFloat(String(cotiExchangeRate.sources.kucoin || 0)),
-        coinbase: parseFloat(String(cotiExchangeRate.sources.coinbase || 0)),
-        crypto: parseFloat(String(cotiExchangeRate.sources.crypto || 0)),
-        coinMarketCap: parseFloat(String(cotiExchangeRate.sources.coinMarketCap || 0)),
-        average: parseFloat(String(cotiExchangeRate.avg || 0)),
-      })
-      .execute(),
-  );
+  
+  // Simple retry for lock timeout
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const [exchangeError] = await exec(
+        transactionalEntityManager
+          .getRepository<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
+          .createQueryBuilder()
+          .insert()
+          .into<PriceSampleEntity>(TableNames.PRICE_SAMPLES)
+          .values({
+            timestamp: moment(date).startOf('minute').toDate(),
+            currencyId: currency.id,
+            binance: parseFloat(String(cotiExchangeRate.sources.binance || 0)),
+            kucoin: parseFloat(String(cotiExchangeRate.sources.kucoin || 0)),
+            coinbase: parseFloat(String(cotiExchangeRate.sources.coinbase || 0)),
+            crypto: parseFloat(String(cotiExchangeRate.sources.crypto || 0)),
+            coinMarketCap: parseFloat(String(cotiExchangeRate.sources.coinMarketCap || 0)),
+            average: parseFloat(String(cotiExchangeRate.avg || 0)),
+          })
+          .execute(),
+      );
 
-  if (exchangeError) {
-    logger.error(exchangeError);
-    throw exchangeError;
+      if (exchangeError) {
+        logger.error(exchangeError);
+        throw exchangeError;
+      }
+      return; // Success, exit retry loop
+    } catch (error) {
+      if (error.message && error.message.includes('Lock wait timeout exceeded') && attempt < 3) {
+        logger.warn(`Lock timeout on attempt ${attempt}, retrying...`);
+        await sleep(1000 * attempt); // Exponential backoff: 1s, 2s
+        continue;
+      }
+      throw error; // Re-throw if not a lock timeout or max attempts reached
+    }
   }
 };
 

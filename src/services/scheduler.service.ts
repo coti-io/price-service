@@ -43,15 +43,13 @@ export class SchedulerService {
   }
 
   async updatePriceSample(): Promise<void> {
-    const tasks: Promise<void>[] = [];
     const manager = getManager(DbNames.PRICE_MONITOR);
     const currencies = await getCurrencies(manager);
     this.logger.debug(`[updatePriceSample][Starting update price scheduler]`);
     for (const currency of currencies) {
       this.logger.debug(`[updatePriceSample][Updating price to currency symbol: ${currency.symbol}]`);
-      tasks.push(this.appService.insertPriceSample(currency));
+      await this.appService.insertPriceSample(currency);
     }
-    await Promise.allSettled(tasks);
     this.logger.debug(`[updatePriceSample][Finished insert coti price scheduler]`);
   }
 
